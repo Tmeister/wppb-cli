@@ -1,7 +1,6 @@
 {
     "name": "tmeister/wppb-cli",
     "description": "A CLI tool for WordPress plugin boilerplate",
-    "version": "1.0.0",
     "type": "command-line-interface",
     "require": {
         "php": "^8.1",
