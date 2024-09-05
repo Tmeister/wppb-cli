@@ -1,0 +1,6 @@
+/vendor/
+.idea/
+.vscode/
+*.log
+.DS_Store
+.cursorrules

@@ -1,0 +1,28 @@
+{
+    "name": "tmeister/wppb-cli",
+    "description": "A CLI tool for WordPress plugin boilerplate",
+    "type": "project",
+    "require": {
+        "php": "^8.1",
+        "symfony/console": "^6.0",
+        "laravel/prompts": "^0.1.0",
+        "ext-zip": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Tmeister\\WppbCli\\": "src/"
+        }
+    },
+    "bin": ["bin/wppb"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Your Name",
+            "email": "your.email@example.com"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require-dev": {
+        "laravel/pint": "^1.17"
+    }
+}

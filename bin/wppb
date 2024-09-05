@@ -1,0 +1,16 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+if (file_exists(__DIR__.'/../../../autoload.php')) {
+    require __DIR__.'/../../../autoload.php';
+} else {
+    require __DIR__.'/../vendor/autoload.php';
+}
+
+use Tmeister\WppbCli\Commands\NewCommand;
+
+$application = new Symfony\Component\Console\Application('WPPB CLI', '1.0.0');
+$application->add(new NewCommand());
+$application->run();
