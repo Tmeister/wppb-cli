@@ -6,6 +6,7 @@ namespace Tmeister\WppbCli\Commands;
 
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use RuntimeException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -20,9 +21,17 @@ use function Laravel\Prompts\spin;
 use function Laravel\Prompts\text;
 use function Laravel\Prompts\textarea;
 
+/**
+ * Class NewCommand
+ *
+ * This command creates a new WordPress plugin boilerplate.
+ */
 class NewCommand extends Command
 {
-    protected function configure()
+    /**
+     * Configure the command.
+     */
+    protected function configure(): void
     {
         $this->setName('new')
             ->setDescription('Create a new WordPress plugin boilerplate')
@@ -35,7 +44,10 @@ class NewCommand extends Command
             ->addArgument('plugin_description', InputArgument::REQUIRED, 'The description of the plugin');
     }
 
-    protected function interact(InputInterface $input, OutputInterface $output)
+    /**
+     * Interact with the user to get input.
+     */
+    protected function interact(InputInterface $input, OutputInterface $output): void
     {
         parent::interact($input, $output);
 
@@ -45,7 +57,6 @@ class NewCommand extends Command
           \ V  V / |  __/|  __/| |_) | | |___| |___ | |
            \_/\_/  |_|   |_|   |____/   \____|_____|___|</>'.PHP_EOL.PHP_EOL);
 
-        // Check if current directory looks like WordPress plugins directory
         $currentDir = basename(getcwd());
         if ($currentDir !== 'wp-plugins') {
             $continue = confirm(
@@ -55,7 +66,6 @@ class NewCommand extends Command
 
             if (! $continue) {
                 error('Plugin creation cancelled.');
-
                 exit(1);
             }
         }
@@ -63,14 +73,12 @@ class NewCommand extends Command
         $input->setArgument('plugin_name', text(
             label: 'What is the name of your plugin?',
             placeholder: 'Sample Plugin',
-            default: 'Sample Plugin',
             required: true
         ));
 
         $input->setArgument('plugin_slug', text(
             label: 'What is the slug of your plugin?',
             placeholder: 'sample-plugin',
-            default: 'sample-plugin',
             required: true,
             validate: fn (string $value) => preg_match('/^[a-z0-9-]+$/', $value) ? null : 'The plugin slug must be lowercase and use hyphens (e.g., sample-text)'
         ));
@@ -78,7 +86,6 @@ class NewCommand extends Command
         $input->setArgument('plugin_url', text(
             label: 'What is the URL of your plugin?',
             placeholder: 'https://example.com',
-            default: 'https://example.com',
             required: true,
             validate: fn (string $value) => filter_var($value, FILTER_VALIDATE_URL) ? null : 'Please enter a valid URL'
         ));
@@ -86,14 +93,12 @@ class NewCommand extends Command
         $input->setArgument('author_name', text(
             label: 'What is the name of the author?',
             placeholder: 'John Doe',
-            default: 'John Doe',
             required: true
         ));
 
         $input->setArgument('author_email', text(
             label: 'What is the email of the author?',
             placeholder: 'john.doe@example.com',
-            default: 'john.doe@example.com',
             required: true,
             validate: fn (string $value) => filter_var($value, FILTER_VALIDATE_EMAIL) ? null : 'Please enter a valid email address'
         ));
@@ -101,7 +106,6 @@ class NewCommand extends Command
         $input->setArgument('author_url', text(
             label: 'What is the URL of the author?',
             placeholder: 'https://example.com',
-            default: 'https://example.com',
             required: true,
             validate: fn (string $value) => filter_var($value, FILTER_VALIDATE_URL) ? null : 'Please enter a valid URL'
         ));
@@ -110,11 +114,13 @@ class NewCommand extends Command
             label: 'What is the description of your plugin?',
             placeholder: 'This is a sample plugin',
             required: true,
-            default: 'This is a sample plugin'
         ));
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    /**
+     * Execute the command.
+     */
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $pluginName = $input->getArgument('plugin_name');
         $pluginSlug = $input->getArgument('plugin_slug');
@@ -126,7 +132,6 @@ class NewCommand extends Command
 
         $destinationPath = getcwd().DIRECTORY_SEPARATOR.$pluginSlug;
 
-        // Validate destination path
         if (! $this->isValidPath($destinationPath)) {
             error('Error: Invalid destination path.');
 
@@ -147,17 +152,14 @@ class NewCommand extends Command
         $remoteGithubMaster = 'https://github.com/DevinVinson/WordPress-Plugin-Boilerplate/archive/refs/heads/master.zip';
         $repoName = 'WordPress-Plugin-Boilerplate-master';
 
-        // Delete all in the extract path folder
         spin(function () use ($extractPath) {
             $this->deleteDirectory($extractPath);
         }, 'Cleaning temporary directory...');
 
-        // Get the master zip file from GitHub
         spin(function () use ($remoteGithubMaster, $downloadPath, $extractPath) {
             $this->downloadAndUnzip($remoteGithubMaster, $downloadPath, $extractPath);
         }, 'Downloading WordPress Plugin Boilerplate...');
 
-        // Replace all the strings in the files
         spin(
             function () use ($extractPath, $repoName, $pluginSlug, $pluginName, $pluginUrl, $authorName, $authorEmail, $authorUrl, $pluginDescription) {
                 $this->replaceStrings($extractPath, $repoName, $pluginSlug, $pluginName, $pluginUrl, $authorName, $authorEmail, $authorUrl, $pluginDescription);
@@ -165,7 +167,6 @@ class NewCommand extends Command
             'Customizing plugin files...'
         );
 
-        // Copy files to the new folder
         $destinationPath = spin(function () use ($extractPath, $repoName, $pluginSlug) {
             return $this->copyToNewFolder($extractPath, $repoName, $pluginSlug);
         }, 'Creating plugin directory...');
@@ -174,7 +175,6 @@ class NewCommand extends Command
             return Command::FAILURE;
         }
 
-        // Track Build
         $this->trackDownload();
 
         info('Plugin created successfully in: '.$pluginSlug);
@@ -185,7 +185,10 @@ class NewCommand extends Command
         return Command::SUCCESS;
     }
 
-    private function deleteDirectory($dir)
+    /**
+     * Delete a directory and its contents.
+     */
+    private function deleteDirectory(string $dir): void
     {
         if (is_dir($dir)) {
             $objects = scandir($dir);
@@ -202,50 +205,54 @@ class NewCommand extends Command
         }
     }
 
-    private function downloadAndUnzip($url, $zipFile, $extractPath)
+    /**
+     * Download and unzip a file.
+     *
+     * @throws RuntimeException
+     */
+    private function downloadAndUnzip(string $url, string $zipFile, string $extractPath): void
     {
         if (file_put_contents($zipFile, file_get_contents($url)) === false) {
-            throw new \RuntimeException('Failed to download the zip file.');
+            throw new RuntimeException('Failed to download the zip file.');
         }
 
         $zip = new ZipArchive;
         if ($zip->open($zipFile) === true) {
-            // Validate zip contents before extraction
             for ($i = 0; $i < $zip->numFiles; $i++) {
                 $filename = $zip->getNameIndex($i);
                 if (! $this->isValidZipEntry($filename, $extractPath)) {
                     $zip->close();
                     unlink($zipFile);
-                    throw new \RuntimeException("Invalid zip entry: $filename");
+                    throw new RuntimeException("Invalid zip entry: $filename");
                 }
             }
 
             $zip->extractTo($extractPath);
             $zip->close();
         } else {
-            throw new \RuntimeException('Failed to open the zip file.');
+            throw new RuntimeException('Failed to open the zip file.');
         }
 
         if (! unlink($zipFile)) {
-            throw new \RuntimeException('Failed to delete the temporary zip file.');
+            throw new RuntimeException('Failed to delete the temporary zip file.');
         }
     }
 
-    private function replaceStrings($extractPath, $repoName, $pluginSlug, $pluginName, $pluginUrl, $authorName, $authorEmail, $authorUrl, $pluginDescription)
+    /**
+     * Replace strings in files.
+     */
+    private function replaceStrings(string $extractPath, string $repoName, string $pluginSlug, string $pluginName, string $pluginUrl, string $authorName, string $authorEmail, string $authorUrl, string $pluginDescription): void
     {
         $destination = $extractPath.'/'.$repoName;
 
-        // Find the 'plugin-name' directory
         $pluginNameDir = $this->findPluginNameDirectory($destination);
         if (! $pluginNameDir) {
-            throw new \RuntimeException("Could not find 'plugin-name' directory in {$destination}");
+            throw new RuntimeException("Could not find 'plugin-name' directory in {$destination}");
         }
 
-        // Rename the plugin-name folder to the plugin slug
         $newPluginDir = dirname($pluginNameDir).'/'.$pluginSlug;
         rename($pluginNameDir, $newPluginDir);
 
-        // Get all the files and rename the plugin-name to the plugin slug
         $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($newPluginDir));
 
         foreach ($iterator as $file) {
@@ -267,7 +274,10 @@ class NewCommand extends Command
         }
     }
 
-    private function findPluginNameDirectory($baseDir)
+    /**
+     * Find the 'plugin-name' directory.
+     */
+    private function findPluginNameDirectory(string $baseDir): string|false
     {
         $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($baseDir), RecursiveIteratorIterator::SELF_FIRST);
         foreach ($iterator as $dir) {
@@ -279,35 +289,45 @@ class NewCommand extends Command
         return false;
     }
 
-    private function replaceInFile($file, $replacements)
+    /**
+     * Replace strings in a file.
+     */
+    private function replaceInFile(string $file, array $replacements): void
     {
         $content = file_get_contents($file);
         $content = str_replace(array_keys($replacements), array_values($replacements), $content);
         file_put_contents($file, $content);
     }
 
-    private function copyToNewFolder($extractPath, $repoName, $pluginSlug)
+    /**
+     * Copy files to a new folder.
+     *
+     * @throws RuntimeException
+     */
+    private function copyToNewFolder(string $extractPath, string $repoName, string $pluginSlug): string|false
     {
         $sourcePath = $extractPath.DIRECTORY_SEPARATOR.$repoName.DIRECTORY_SEPARATOR.$pluginSlug;
         $destinationPath = getcwd().DIRECTORY_SEPARATOR.$pluginSlug;
 
         if (! $this->isValidPath($destinationPath)) {
-            throw new \RuntimeException('Invalid destination path.');
+            throw new RuntimeException('Invalid destination path.');
         }
 
-        if (! mkdir($destinationPath, 0755, true)) {
-            throw new \RuntimeException('Failed to create destination directory.');
+        if (! mkdir($destinationPath, 0750, true)) {
+            throw new RuntimeException('Failed to create destination directory.');
         }
 
         $this->recursiveCopy($sourcePath, $destinationPath);
 
-        // Clean up temporary files
         $this->deleteDirectory($extractPath);
 
         return $destinationPath;
     }
 
-    private function recursiveCopy($src, $dst)
+    /**
+     * Recursively copy a directory.
+     */
+    private function recursiveCopy(string $src, string $dst): void
     {
         $dir = opendir($src);
         @mkdir($dst);
@@ -323,25 +343,32 @@ class NewCommand extends Command
         closedir($dir);
     }
 
-    private function trackDownload()
+    /**
+     * Track the download.
+     */
+    private function trackDownload(): void
     {
         // Implement your tracking logic here
         // For example, you could use a service like Google Analytics
     }
 
-    // New helper methods for security checks
-
-    private function isValidPath($path)
+    /**
+     * Check if a path is valid.
+     */
+    private function isValidPath(string $path): bool
     {
         $realPath = realpath(dirname($path));
 
-        return $realPath !== false && strpos($path, $realPath) === 0;
+        return $realPath !== false && str_starts_with($path, $realPath);
     }
 
-    private function isValidZipEntry($filename, $extractPath)
+    /**
+     * Check if a zip entry is valid.
+     */
+    private function isValidZipEntry(string $filename, string $extractPath): bool
     {
         $targetPath = $extractPath.DIRECTORY_SEPARATOR.$filename;
 
-        return strpos($targetPath, $extractPath.DIRECTORY_SEPARATOR) === 0;
+        return str_starts_with($targetPath, $extractPath.DIRECTORY_SEPARATOR);
     }
 }
