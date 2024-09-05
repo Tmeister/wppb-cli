@@ -20,6 +20,7 @@ use function Laravel\Prompts\note;
 use function Laravel\Prompts\spin;
 use function Laravel\Prompts\text;
 use function Laravel\Prompts\textarea;
+use function Laravel\Prompts\warning;
 
 /**
  * Class NewCommand
@@ -28,13 +29,15 @@ use function Laravel\Prompts\textarea;
  */
 class NewCommand extends Command
 {
+    private const CONFIG_FILE_NAME = '.wppb';
+
     /**
      * Configure the command.
      */
     protected function configure(): void
     {
         $this->setName('new')
-            ->setDescription('Create a new WordPress plugin boilerplate')
+            ->setDescription('Create a new WordPress plugin using the WPPB boilerplate')
             ->addArgument('plugin_name', InputArgument::REQUIRED, 'The name of the plugin')
             ->addArgument('plugin_slug', InputArgument::REQUIRED, 'The slug of the plugin')
             ->addArgument('plugin_url', InputArgument::REQUIRED, 'The URL of the plugin')
@@ -58,7 +61,7 @@ class NewCommand extends Command
            \_/\_/  |_|   |_|   |____/   \____|_____|___|</>'.PHP_EOL.PHP_EOL);
 
         $currentDir = basename(getcwd());
-        if ($currentDir !== 'wp-plugins') {
+        if (! str_ends_with(getcwd(), 'wp-content/plugins')) {
             $continue = confirm(
                 label: 'The current path does not look like the WordPress plugin directory. Do you want to continue?',
                 default: false
@@ -86,19 +89,24 @@ class NewCommand extends Command
         $input->setArgument('plugin_url', text(
             label: 'What is the URL of your plugin?',
             placeholder: 'https://example.com',
+            default: 'https://',
             required: true,
             validate: fn (string $value) => filter_var($value, FILTER_VALIDATE_URL) ? null : 'Please enter a valid URL'
         ));
 
+        $config = $this->readConfigFile();
+
         $input->setArgument('author_name', text(
             label: 'What is the name of the author?',
             placeholder: 'John Doe',
+            default: $config['author'] ?? '',
             required: true
         ));
 
         $input->setArgument('author_email', text(
             label: 'What is the email of the author?',
             placeholder: 'john.doe@example.com',
+            default: $config['authorEmail'] ?? '',
             required: true,
             validate: fn (string $value) => filter_var($value, FILTER_VALIDATE_EMAIL) ? null : 'Please enter a valid email address'
         ));
@@ -106,6 +114,7 @@ class NewCommand extends Command
         $input->setArgument('author_url', text(
             label: 'What is the URL of the author?',
             placeholder: 'https://example.com',
+            default: $config['authorUrl'] ?? 'https://',
             required: true,
             validate: fn (string $value) => filter_var($value, FILTER_VALIDATE_URL) ? null : 'Please enter a valid URL'
         ));
@@ -178,9 +187,9 @@ class NewCommand extends Command
         $this->trackDownload();
 
         info('Plugin created successfully in: '.$pluginSlug);
-        info('Next steps:');
-        note(' - Navigate to the plugin directory: cd '.$pluginSlug);
         note(' - Activate the plugin: wp plugin activate '.$pluginSlug.' or directly in the WordPress admin');
+        note(' - Start coding!');
+        info('Don\'t forget to follow me on X aka Twitter: @tmeister');
 
         return Command::SUCCESS;
     }
@@ -269,6 +278,7 @@ class NewCommand extends Command
                     'plugin-name' => $pluginSlug,
                     'Your Name <email@example.com>' => "$authorName <$authorEmail>",
                     'Plugin_Name' => str_replace('-', '_', ucwords($pluginSlug, '-')),
+                    'PLUGIN_NAME_VERSION' => strtoupper(str_replace('-', '_', $pluginSlug)).'_VERSION',
                 ]);
             }
         }
@@ -370,5 +380,59 @@ class NewCommand extends Command
         $targetPath = $extractPath.DIRECTORY_SEPARATOR.$filename;
 
         return str_starts_with($targetPath, $extractPath.DIRECTORY_SEPARATOR);
+    }
+
+    /**
+     * Read the configuration file from the user's home directory.
+     *
+     * @return array<string, string>
+     */
+    private function readConfigFile(): array
+    {
+        $homeDir = $this->getHomeDirectory();
+        $configPath = $homeDir.DIRECTORY_SEPARATOR.self::CONFIG_FILE_NAME;
+
+        if (! file_exists($configPath)) {
+            return [];
+        }
+
+        $configContent = file_get_contents($configPath);
+        $config = [];
+
+        foreach (explode("\n", $configContent) as $line) {
+            $line = trim($line);
+            if (empty($line) || strpos($line, '=') === false) {
+                continue;
+            }
+            [$key, $value] = explode('=', $line, 2);
+            $config[trim($key)] = trim($value);
+        }
+
+        if (! $this->isValidConfig($config)) {
+            warning('We found the .wppb file but the format is incorrect. Continuing without prefilling the fields.');
+
+            return [];
+        }
+
+        return $config;
+    }
+
+    /**
+     * Get the user's home directory.
+     */
+    private function getHomeDirectory(): string
+    {
+        return $_SERVER['HOME'] ?? $_SERVER['USERPROFILE'] ?? '';
+    }
+
+    /**
+     * Validate the configuration array.
+     */
+    private function isValidConfig(array $config): bool
+    {
+        return isset($config['author'], $config['authorEmail'], $config['authorUrl']) &&
+               is_string($config['author']) &&
+               is_string($config['authorEmail']) &&
+               is_string($config['authorUrl']);
     }
 }
