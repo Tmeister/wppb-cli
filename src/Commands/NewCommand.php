@@ -60,7 +60,6 @@ class NewCommand extends Command
           \ V  V / |  __/|  __/| |_) | | |___| |___ | |
            \_/\_/  |_|   |_|   |____/   \____|_____|___|</>'.PHP_EOL.PHP_EOL);
 
-        $currentDir = basename(getcwd());
         if (! str_ends_with(getcwd(), 'wp-content/plugins')) {
             $continue = confirm(
                 label: 'The current path does not look like the WordPress plugin directory. Do you want to continue?',
@@ -323,7 +322,8 @@ class NewCommand extends Command
             throw new RuntimeException('Invalid destination path.');
         }
 
-        if (! mkdir($destinationPath, 0750, true)) {
+        // Use more flexible permissions
+        if (! mkdir($destinationPath, 0755, true) && ! is_dir($destinationPath)) {
             throw new RuntimeException('Failed to create destination directory.');
         }
 
@@ -422,7 +422,16 @@ class NewCommand extends Command
      */
     private function getHomeDirectory(): string
     {
-        return $_SERVER['HOME'] ?? $_SERVER['USERPROFILE'] ?? '';
+        // Improve home directory detection
+        if (isset($_SERVER['HOME'])) {
+            return $_SERVER['HOME'];
+        } elseif (isset($_SERVER['HOMEDRIVE'], $_SERVER['HOMEPATH'])) {
+            return $_SERVER['HOMEDRIVE'].$_SERVER['HOMEPATH'];
+        } elseif (isset($_SERVER['USERPROFILE'])) {
+            return $_SERVER['USERPROFILE'];
+        }
+
+        throw new RuntimeException('Unable to determine home directory');
     }
 
     /**
