@@ -44,7 +44,8 @@ class NewCommand extends Command
             ->addArgument('author_name', InputArgument::REQUIRED, 'The name of the author')
             ->addArgument('author_email', InputArgument::REQUIRED, 'The email of the author')
             ->addArgument('author_url', InputArgument::REQUIRED, 'The URL of the author')
-            ->addArgument('plugin_description', InputArgument::REQUIRED, 'The description of the plugin');
+            ->addArgument('plugin_description', InputArgument::REQUIRED, 'The description of the plugin')
+            ->addArgument('boilerplate_repository', InputArgument::OPTIONAL, 'The URL of the repository for the boilerplate to use');
     }
 
     /**
@@ -62,7 +63,7 @@ class NewCommand extends Command
 
         if (! str_ends_with(getcwd(), 'wp-content/plugins')) {
             $continue = confirm(
-                label: 'The current path does not look like the WordPress plugin directory. Do you want to continue?',
+                label: 'The current path to create the plugin is: '.getcwd().'. Do you want to continue?',
                 default: false
             );
 
@@ -123,6 +124,22 @@ class NewCommand extends Command
             placeholder: 'This is a sample plugin',
             required: true,
         ));
+
+        $useDevinVinsonBoilerplate = confirm(
+            label: 'Lastly, you want to use the original DevinVinson boilerplate? (Say No if you want to use a different boilerplate)',
+            default: false
+        );
+
+        if ( $useDevinVinsonBoilerplate ) return;
+
+        $input->setArgument('boilerplate_repository', text(
+            label: 'What is the Github URL of the repository for the boilerplate you want to use? (Without trailing  slash)',
+            placeholder: 'https://github.com/DevinVinson/WordPress-Plugin-Boilerplate',
+            default: $config['boilerplate_repository'] ?? 'https://github.com/',
+            required: true,
+            validate: fn (string $value) => filter_var($value, FILTER_VALIDATE_URL) ? null : 'Please enter a valid URL'
+        ));
+        
     }
 
     /**
@@ -137,6 +154,7 @@ class NewCommand extends Command
         $authorEmail = $input->getArgument('author_email');
         $authorUrl = $input->getArgument('author_url');
         $pluginDescription = $input->getArgument('plugin_description');
+        $boilerplateRepository = $input->getArgument('boilerplate_repository') ?? 'https://github.com/DevinVinson/WordPress-Plugin-Boilerplate';
 
         $destinationPath = getcwd().DIRECTORY_SEPARATOR.$pluginSlug;
 
@@ -157,8 +175,8 @@ class NewCommand extends Command
         $tmpFolder = sys_get_temp_dir();
         $downloadPath = $tmpFolder.'/master.zip';
         $extractPath = $tmpFolder.'/source';
-        $remoteGithubMaster = 'https://github.com/DevinVinson/WordPress-Plugin-Boilerplate/archive/refs/heads/master.zip';
-        $repoName = 'WordPress-Plugin-Boilerplate-master';
+        $remoteGithubMaster = $boilerplateRepository . '/archive/refs/heads/master.zip';
+        $repoName = basename($boilerplateRepository) . '-master';
 
         spin(function () use ($extractPath) {
             $this->deleteDirectory($extractPath);
